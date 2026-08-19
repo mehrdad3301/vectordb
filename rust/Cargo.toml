@@ -1,7 +1,5 @@
 [workspace]
 members = [
-    "vector/core",
-    "vector/datafusion",
     "vector-starter/core",
     "vector-starter/datafusion",
 ]

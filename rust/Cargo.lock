@@ -2585,23 +2585,8 @@ dependencies = [
 ]
 
 [[package]]
-name = "vector-core"
-version = "0.1.0"
-
-[[package]]
 name = "vector-core-starter"
 version = "0.1.0"
-
-[[package]]
-name = "vector-datafusion"
-version = "0.1.0"
-dependencies = [
- "async-trait",
- "datafusion",
- "sqllogictest",
- "tokio",
- "vector-core",
-]
 
 [[package]]
 name = "vector-datafusion-starter"
