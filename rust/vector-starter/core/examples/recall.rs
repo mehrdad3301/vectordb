@@ -118,6 +118,7 @@ fn main() -> vector_core_starter::Result<()> {
     let ivf_flat = IvfFlatIndex::try_new(dataset, metric, config)?;
     let ivf_flat_build = started.elapsed();
 
+    
     let dataset = workload.dataset.clone();
     let metric = workload.metric;
     let config = nsw_config();

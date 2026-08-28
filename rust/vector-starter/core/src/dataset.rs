@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
-use crate::{Metric, Result};
 use crate::VectorError;
+use crate::{Metric, Result};
 
 #[derive(Debug, Clone)]
 pub struct Dataset {
@@ -10,14 +10,21 @@ pub struct Dataset {
 }
 
 impl Dataset {
+    pub fn len(&self) -> usize {
+        self.vectors.len()
+    }
 
-    pub fn len(&self) -> usize { self.vectors.len() }
+    pub fn is_empty(&self) -> bool {
+        self.vectors.is_empty()
+    }
 
-    pub fn is_empty(&self) -> bool { self.vectors.is_empty() }
+    pub fn dimension(&self) -> usize {
+        self.dimension
+    }
 
-    pub fn dimension(&self) -> usize { self.dimension }
-
-    pub fn vector(&self, row: usize) -> &[f32] { &self.vectors[row] }
+    pub fn vector(&self, row: usize) -> &[f32] {
+        &self.vectors[row]
+    }
 
     pub fn try_new(vectors: Vec<Vec<f32>>) -> Result<Self> {
         if vectors.is_empty() {
@@ -66,7 +73,10 @@ impl Dataset {
 
         for (i, x) in query.iter().enumerate() {
             if !x.is_finite() {
-                return Err(VectorError::NonFiniteValue { vector: i, dimension: i });
+                return Err(VectorError::NonFiniteValue {
+                    vector: i,
+                    dimension: i,
+                });
             }
         }
 

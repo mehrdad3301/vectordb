@@ -68,8 +68,13 @@ impl TopK {
     }
 }
 
-pub fn recall_at_k(_expected: &[Neighbor], _actual: &[Neighbor], _k: usize) -> f64 {
-    todo!("Chapter 2: compute top-k row-id overlap")
+pub fn recall_at_k(expected: &[Neighbor], actual: &[Neighbor], k: usize) -> f64 {
+    let k = k.min(expected.len());
+    let expected_ids: std::collections::HashSet<_> = expected.iter().map(|x| x.row).collect();
+    let actual_ids: std::collections::HashSet<_> = actual.iter().map(|x| x.row).collect();
+    let intersection = expected_ids.intersection(&actual_ids).count();
+
+    intersection as f64 / k as f64
 }
 
 #[derive(Debug, Clone)]
