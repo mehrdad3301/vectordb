@@ -1,15 +1,58 @@
+use std::cmp::Reverse;
+use std::collections::{BinaryHeap, HashSet};
+
+use crate::search::TopK;
 use crate::{Dataset, Metric, Neighbor};
 
 pub(crate) fn search_layer(
-    _dataset: &Dataset,
-    _metric: Metric,
-    _query: &[f32],
-    _adjacency: &[Vec<usize>],
-    _entry_points: &[usize],
-    _ef: usize,
-    _allowed_rows: usize,
+    dataset: &Dataset,
+    metric: Metric,
+    query: &[f32],
+    adjacency: &[Vec<usize>],
+    entry_points: &[usize],
+    ef: usize,
+    allowed_rows: usize,
 ) -> Vec<Neighbor> {
-    todo!("Chapter 3: traverse the graph with separate candidate and result frontiers")
+    let width = ef.max(1);
+    let limit = allowed_rows.min(dataset.len()).min(adjacency.len());
+
+    let mut visited = HashSet::new();
+    let mut candidates = BinaryHeap::new();
+    let mut results = TopK::new(width);
+
+    for &row in entry_points {
+        if row >= limit || !visited.insert(row) {
+            continue;
+        }
+        let neighbor = Neighbor {
+            row,
+            distance: metric.distance(dataset.vector(row), query),
+        };
+        candidates.push(Reverse(neighbor));
+        results.push(neighbor);
+    }
+
+    while let Some(Reverse(candidate)) = candidates.pop() {
+        if results.len() >= width && results.worst().is_some_and(|worst| candidate > worst) {
+            break;
+        }
+
+        for &row in adjacency.get(candidate.row).into_iter().flatten() {
+            if row >= limit || !visited.insert(row) {
+                continue;
+            }
+            let neighbor = Neighbor {
+                row,
+                distance: metric.distance(dataset.vector(row), query),
+            };
+            if results.len() < width || results.worst().is_some_and(|worst| neighbor < worst) {
+                candidates.push(Reverse(neighbor));
+                results.push(neighbor);
+            }
+        }
+    }
+
+    results.into_sorted()
 }
 
 pub(crate) fn greedy_search(
@@ -24,11 +67,20 @@ pub(crate) fn greedy_search(
 }
 
 pub(crate) fn prune_neighbors(
-    _dataset: &Dataset,
-    _metric: Metric,
-    _owner: usize,
-    _neighbors: &mut Vec<usize>,
-    _max_connections: usize,
+    dataset: &Dataset,
+    metric: Metric,
+    owner: usize,
+    neighbors: &mut Vec<usize>,
+    max_connections: usize,
 ) {
-    todo!("Chapter 3: retain the closest deterministic neighbor set")
+    let owner_vec = dataset.vector(owner);
+
+    neighbors.retain(|&row| row != owner);
+    neighbors.sort_by(|a, b| {
+        let da = metric.distance(owner_vec, dataset.vector(*a));
+        let db = metric.distance(owner_vec, dataset.vector(*b));
+        da.total_cmp(&db).then_with(|| a.cmp(b))
+    });
+    neighbors.dedup();
+    neighbors.truncate(max_connections);
 }
