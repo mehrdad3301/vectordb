@@ -73,14 +73,24 @@ pub(crate) fn prune_neighbors(
     neighbors: &mut Vec<usize>,
     max_connections: usize,
 ) {
-    let owner_vec = dataset.vector(owner);
+    let owner_vec = dataset.vector(owner);  
 
-    neighbors.retain(|&row| row != owner);
-    neighbors.sort_by(|a, b| {
-        let da = metric.distance(owner_vec, dataset.vector(*a));
-        let db = metric.distance(owner_vec, dataset.vector(*b));
-        da.total_cmp(&db).then_with(|| a.cmp(b))
-    });
-    neighbors.dedup();
+    neighbors
+        .sort_by(
+            |a, b| {
+            let da = metric.distance(owner_vec, dataset.vector(*a));
+            let db = metric.distance(owner_vec, dataset.vector(*b));
+            da.total_cmp(&db).then_with(|| a.cmp(b))
+        });
+
+    // remove duplicates 
+    neighbors.dedup() ;
+
+    // remove self-edge 
+    if neighbors.get(0).is_some() 
+    && neighbors.get(0).unwrap().eq(&owner) { 
+        neighbors.remove(0) ; 
+    }
+    
     neighbors.truncate(max_connections);
 }
