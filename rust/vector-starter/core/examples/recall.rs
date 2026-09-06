@@ -217,40 +217,69 @@ fn ivf_pq_config() -> IvfPqConfig {
 }
 
 fn build_nsw(
-    _dataset: Dataset,
-    _metric: Metric,
-    _config: NswConfig,
+    dataset: Dataset,
+    metric: Metric,
+    config: NswConfig,
 ) -> vector_core_starter::Result<NswIndex> {
-    todo!("Chapter 6: build NSW with the benchmark configuration")
+    NswIndex::try_new(dataset, metric, config)
 }
 
 fn build_hnsw(
-    _dataset: Dataset,
-    _metric: Metric,
-    _config: HnswConfig,
+    dataset: Dataset,
+    metric: Metric,
+    config: HnswConfig,
 ) -> vector_core_starter::Result<HnswIndex> {
-    todo!("Chapter 6: build HNSW with the benchmark configuration")
+    HnswIndex::try_new(dataset, metric, config)
 }
 
 fn build_ivf_pq(
-    _dataset: Dataset,
-    _metric: Metric,
-    _config: IvfPqConfig,
+    dataset: Dataset,
+    metric: Metric,
+    config: IvfPqConfig,
 ) -> vector_core_starter::Result<IvfPqIndex> {
-    todo!("Chapter 6: build IVF-PQ with the benchmark configuration")
+    IvfPqIndex::try_new(dataset, metric, config)
 }
 
-fn warm_up(indexes: &[BuiltIndex], _workload: &Workload) -> vector_core_starter::Result<()> {
+fn index_at_query_position(query: usize, offset: usize) -> usize {
+    (query + offset) % INDEX_COUNT
+}
+
+fn warm_up(indexes: &[BuiltIndex], workload: &Workload) -> vector_core_starter::Result<()> {
     assert_eq!(indexes.len(), INDEX_COUNT);
-    let _first_kind = indexes[0].index.kind();
-    todo!("Chapter 6: run the balanced cyclic warm-up pass")
+    for (query, vector) in workload.queries.iter().enumerate() {
+        for offset in 0..INDEX_COUNT {
+            indexes[index_at_query_position(query, offset)]
+                .index
+                .search(vector, workload.k)?;
+        }
+    }
+    Ok(())
 }
 
 fn measure(
-    _indexes: &[BuiltIndex],
-    _workload: &Workload,
+    indexes: &[BuiltIndex],
+    workload: &Workload,
 ) -> vector_core_starter::Result<Vec<TimedRun>> {
-    todo!("Chapter 6: time one balanced cyclic search pass")
+    assert_eq!(indexes.len(), INDEX_COUNT);
+    let mut runs = (0..INDEX_COUNT)
+        .map(|_| TimedRun {
+            latencies: vec![Duration::ZERO; workload.queries.len()],
+            results: vec![Vec::new(); workload.queries.len()],
+        })
+        .collect::<Vec<_>>();
+
+    for (query, vector) in workload.queries.iter().enumerate() {
+        for offset in 0..INDEX_COUNT {
+            let index = index_at_query_position(query, offset);
+            let started = Instant::now();
+            let result = indexes[index].index.search(vector, workload.k);
+            let elapsed = started.elapsed();
+            let result = result?;
+            runs[index].latencies[query] = elapsed;
+            runs[index].results[query] = result;
+        }
+    }
+    Ok(runs)
 }
 
 fn summarize(run: &TimedRun, ground_truth: &[Vec<Neighbor>], k: usize) -> Measurement {
@@ -335,8 +364,14 @@ fn format_accounting(accounting: PqAccounting) -> String {
     )
 }
 
-fn percentile(_sorted: &[Duration], _percent: usize) -> Duration {
-    todo!("Chapter 6: select a nearest-rank latency percentile")
+fn percentile(sorted: &[Duration], percent: usize) -> Duration {
+    debug_assert!(!sorted.is_empty());
+    debug_assert!(percent <= 100);
+    let index = (percent * sorted.len())
+        .div_ceil(100)
+        .saturating_sub(1)
+        .min(sorted.len() - 1);
+    sorted[index]
 }
 
 fn sample(row: u64, dimension: u64) -> f32 {
